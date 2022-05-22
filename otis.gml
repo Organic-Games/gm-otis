@@ -1,15 +1,15 @@
-function load_saves(datafilename) {
-    global.saves = data_broil_decode(datafilename, ",");
+function load_saves(masterfile) {
+    global.saves = data_broil_decode(masterfile, ",");
     global.saves[0][1] = json_parse(global.saves[0][1]);
 }
 
-function apply_save_changes(datafilename) {
+function apply_save_changes(masterfile) {
     global.saves[0][1] = json_stringify(global.saves[0][1]);
     data_broil_encode(global.saves, ",", "playerdata");
 }
 
-function save_game(str, filename, savename, tag, autosave, datafilename) {
-    if(!file_exists(datafilename)) {
+function save_game(str, filename, savename, tag, autosave, masterfile) {
+    if(!file_exists(masterfile)) {
         global.saves = [
             [
                 "index",
@@ -19,7 +19,7 @@ function save_game(str, filename, savename, tag, autosave, datafilename) {
                 }
             ]
         ];
-    } else load_saves(datafilename);
+    } else load_saves(masterfile);
     
     var indexsave = variable_struct_get(global.saves[0][1].saves, filename);
     if(indexsave == undefined) {
@@ -59,16 +59,16 @@ function save_game(str, filename, savename, tag, autosave, datafilename) {
         }
     }
     
-    apply_save_changes(datafilename);
+    apply_save_changes(masterfile);
 }
 
-function load_game(datafilename, filename) {
-    load_saves(datafilename);
+function load_game(masterfile, filename) {
+    load_saves(masterfile);
     return global.saves[variable_struct_get(global.saves[0][1].saves, filename).number][1];
 }
 
-function delete_save(datafilename, filename) {
-    load_saves(datafilename);
+function delete_save(masterfile, filename) {
+    load_saves(masterfile);
     var tag = variable_struct_get(global.saves[0][1].saves, filename).tag;
     var number = variable_struct_get(global.saves[0][1].saves, filename).number;
     variable_struct_remove(global.saves[0][1].saves, filename);
@@ -87,18 +87,18 @@ function delete_save(datafilename, filename) {
             if(array_length(taglist.files) == 0) variable_struct_remove(global.saves[0][1].tags, tag);
         }
         
-    apply_save_changes(datafilename);
+    apply_save_changes(masterfile);
 }
 
-function copy_save(datafilename, filename, suffix) {
-    var str = load_game(datafilename, filename);
+function copy_save(masterfile, filename, suffix) {
+    var str = load_game(masterfile, filename);
     var indexsave = variable_struct_get(global.saves[0][1].saves, filename);
     
     var copyname = filename + " copy";
     while(variable_struct_get(global.saves[0][1].saves, copyname) != undefined)
         copyname += " copy";
     
-    save_game(str, copyname, indexsave.name + " " + suffix, indexsave.tag, indexsave.autosave, datafilename);
+    save_game(str, copyname, indexsave.name + " " + suffix, indexsave.tag, indexsave.autosave, masterfile);
     
     return copyname;
 }
