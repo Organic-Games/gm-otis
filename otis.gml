@@ -1,14 +1,18 @@
-function load_saves(masterfile) {
-    global.saves = data_broil_decode(masterfile, ",");
-    global.saves[0][1] = json_parse(global.saves[0][1]);
+#macro OTIS_CHECK_HASH true
+
+function otis_load_saves(masterfile) {
+	var f = file_text_open_read(masterfile);
+	global.saves = json_parse(file_text_read_string(f));
+	file_text_close(f);
 }
 
-function apply_save_changes(masterfile) {
-    global.saves[0][1] = json_stringify(global.saves[0][1]);
-    data_broil_encode(global.saves, ",", "playerdata");
+function otis_apply_save_changes(masterfile) {
+	var f = file_text_open_write(masterfile);
+	file_text_write_string(f, json_stringify(global.saves));
+	file_text_close(f);
 }
 
-function save_game(str, filename, savename, tag, autosave, masterfile) {
+function otis_save_game(str, filename, savename, tag, autosave, masterfile) {
     if(!file_exists(masterfile)) {
         global.saves = [
             [
@@ -19,11 +23,12 @@ function save_game(str, filename, savename, tag, autosave, masterfile) {
                 }
             ]
         ];
-    } else load_saves(masterfile);
+    } else otis_load_saves(masterfile);
     
     var indexsave = variable_struct_get(global.saves[0][1].saves, filename);
     if(indexsave == undefined) {
-        var num = array_length(global.saves);
+        var hash = base64_encode(md5_string_utf8(str));
+		var num = array_length(global.saves);
         var changetag = true;
         var oldtag = undefined;
         array_push(global.saves, [filename, str]);
@@ -31,14 +36,17 @@ function save_game(str, filename, savename, tag, autosave, masterfile) {
             name: savename,
             tag: tag,
             autosave: autosave,
-            number: num
+            number: num,
+			hash: hash
         });
     } else {
+        var hash = base64_encode(md5_string_utf8(str));
         var oldtag = indexsave.tag;
         var changetag = oldtag == tag;
         indexsave.name = savename;
         indexsave.tag = tag;
         indexsave.autosave = autosave;
+		indexsave.hash = hash;
         global.saves[indexsave.number][1] = str;
     }
     
@@ -59,16 +67,19 @@ function save_game(str, filename, savename, tag, autosave, masterfile) {
         }
     }
     
-    apply_save_changes(masterfile);
+    otis_apply_save_changes(masterfile);
 }
 
-function load_game(masterfile, filename) {
-    load_saves(masterfile);
-    return global.saves[variable_struct_get(global.saves[0][1].saves, filename).number][1];
+function otis_load_game(masterfile, filename) {
+    otis_load_saves(masterfile);
+    var str = global.saves[variable_struct_get(global.saves[0][1].saves, filename).number][1];
+	if(md5_string_utf8(str) != base64_decode(variable_struct_get(global.saves[0][1].saves, filename).hash) and OTIS_CHECK_HASH)
+		return "Hash error";
+	else return str;
 }
 
-function delete_save(masterfile, filename) {
-    load_saves(masterfile);
+function otis_delete_save(masterfile, filename) {
+    otis_load_saves(masterfile);
     var tag = variable_struct_get(global.saves[0][1].saves, filename).tag;
     var number = variable_struct_get(global.saves[0][1].saves, filename).number;
     variable_struct_remove(global.saves[0][1].saves, filename);
@@ -87,18 +98,18 @@ function delete_save(masterfile, filename) {
             if(array_length(taglist.files) == 0) variable_struct_remove(global.saves[0][1].tags, tag);
         }
         
-    apply_save_changes(masterfile);
+    otis_apply_save_changes(masterfile);
 }
 
-function copy_save(masterfile, filename, suffix) {
-    var str = load_game(masterfile, filename);
+function otis_copy_save(masterfile, filename, suffix) {
+    var str = otis_load_game(masterfile, filename);
     var indexsave = variable_struct_get(global.saves[0][1].saves, filename);
     
     var copyname = filename + " copy";
     while(variable_struct_get(global.saves[0][1].saves, copyname) != undefined)
         copyname += " copy";
     
-    save_game(str, copyname, indexsave.name + " " + suffix, indexsave.tag, indexsave.autosave, masterfile);
+    otis_save_game(str, copyname, indexsave.name + " " + suffix, indexsave.tag, indexsave.autosave, masterfile);
     
     return copyname;
 }
